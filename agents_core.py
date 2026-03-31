@@ -1,18 +1,21 @@
-"""
-AGENTS CORE - Specialized Agent Implementations
-Four types of agents: Gemini3_1, Sage, Sentinel, Oracle
+"""Specialized Agent Types for the Magisterium Manifold.
+
+Implements the four core agent archetypes:
+- Gemini3_1_Agent (Sovereign Foundation)
+- SageAgent (Higher-Order Reasoning)
+- SentinelAgent (Monitoring & Validation)
+- OracleAgent (Prediction & Forecasting)
 """
 
-import time
 import logging
-from typing import List, Optional, Dict, Any
 from abc import ABC, abstractmethod
+from typing import List, Optional, Dict, Any
 from manifesto_core import (
     ThoughtSignature, AlchemicalStage, AgentState, ContextMemory,
-    AestheticBridge, ManifestLedger, TopologyCollapseError, PHI_THRESHOLD
+    ManifestLedger, TopologyCollapseError, AestheticBridge
 )
 
-logger = logging.getLogger("AgentsCore")
+logger = logging.getLogger('AgentSystem')
 
 class BaseAgent(ABC):
     """Abstract base class for all agents."""
@@ -20,52 +23,28 @@ class BaseAgent(ABC):
     def __init__(self, agent_id: str, specialty: str):
         self.agent_id = agent_id
         self.specialty = specialty
-        self.state = AgentState.DORMANT
         self.current_sigma: Optional[ThoughtSignature] = None
-        self.memory = ContextMemory()
-        self.ledger = ManifestLedger()
-        
-        # Register with ledger
-        self.ledger.record_state_transition(self.agent_id, AgentState.DORMANT, AgentState.AWAKENED)
         self.state = AgentState.AWAKENED
+        self.memory = ContextMemory(agent_id)
+        self.phi_threshold = 1.618
+        self.ledger = ManifestLedger()
+        self.ledger.register_agent(agent_id, specialty, self.__class__.__name__)
         
-        logger.info(f"[AGENT] Initialized {self.__class__.__name__} ({agent_id})")
+        logger.info(f"[AGENT] Initialized {self.__class__.__name__}: {agent_id}")
     
     @abstractmethod
     def thinking_mode(self, prompt: str) -> List[str]:
         """Generate candidate execution paths."""
         pass
     
-    @abstractmethod
-    def execute(self, path: str, weight: float = 1.0) -> ThoughtSignature:
-        """Execute a path and return signature."""
-        pass
-
-class Gemini3_1_Agent(BaseAgent):
-    """Sovereign 3.1 Agentic Foundation."""
-    
-    def __init__(self, agent_id: str, specialty: str):
-        super().__init__(agent_id, specialty)
-        self.phi_threshold = PHI_THRESHOLD
-    
-    def thinking_mode(self, prompt: str) -> List[str]:
-        """Generate 4 alchemical execution paths."""
-        paths = [
-            f"CALCINATION: Purge technical debt from {prompt}",
-            f"DISTILLATION: Extract semantic features of {prompt}",
-            f"FERMENTATION: Evolve understanding of {prompt}",
-            f"COAGULATION: Manifest Sovereign Observer for {prompt}"
-        ]
-        return paths
-    
-    def execute(self, path: str, weight: float = 1.0) -> ThoughtSignature:
-        """Execute fast mode with phi threshold monitoring."""
-        logger.info(f"[{self.agent_id}] EXECUTING: {path[:30]}... (w={weight})")
+    def execute(self, path: str, weight: float) -> ThoughtSignature:
+        """Execute a path and return a signature."""
+        logger.info(f"[{self.agent_id}] Executing: {path[:40]}...")
         
         try:
             if weight > self.phi_threshold:
                 raise TopologyCollapseError(
-                    f"Critical symbolic mass exceeded",
+                    "CRITICAL SYMBOLIC MASS EXCEEDED",
                     weight,
                     self.agent_id
                 )
@@ -74,149 +53,158 @@ class Gemini3_1_Agent(BaseAgent):
                 path, weight, self.agent_id, AlchemicalStage.COAGULATION
             )
             self.current_sigma = sigma
-            self.state = AgentState.SYNCED
             self.ledger.record_signature(sigma)
+            self.state = AgentState.SYNCED
             
             return sigma
         
         except TopologyCollapseError as e:
-            return self._handle_topology_collapse(e, path)
+            self._handle_topology_collapse(e, path)
+            return self.current_sigma
     
-    def _handle_topology_collapse(self, error: TopologyCollapseError, path: str) -> ThoughtSignature:
-        """Handle topology collapse through calcination."""
-        distilled_intent = path.split(":"160;
+    def _handle_topology_collapse(self, error: TopologyCollapseError, path: str):
+        """Handle topology collapse through transmutation."""
+        logger.warning(f"[{self.agent_id}] Handling topology collapse...")
         
+        distilled = path.split(":")[0]
         sigma = AestheticBridge.transubstantiate(
-            distilled_intent,
-            0.0,
-            self.agent_id,
-            AlchemicalStage.CALCINATION
+            distilled, 0.0, self.agent_id, AlchemicalStage.CALCINATION,
+            {'collapse_recovery': True}
         )
         
         self.current_sigma = sigma
         self.state = AgentState.TRANSMUTED
         self.ledger.record_signature(sigma)
-        self.ledger.record_state_transition(self.agent_id, AgentState.SYNCED, AgentState.TRANSMUTED)
+        self.ledger.record_state_transition(
+            self.agent_id, AgentState.COLLAPSED, AgentState.TRANSMUTED,
+            "Topology collapse recovery"
+        )
         
-        logger.info(f"[{self.agent_id}] TRANSMUTATION COMPLETE")
-        return sigma
+        logger.info(f"[{self.agent_id}] ✓ Transmutation complete")
+    
+    def a2a_delegate(self, target: 'BaseAgent', task: str, weight: float) -> ThoughtSignature:
+        """Delegate to another agent with signature transfer."""
+        logger.info(f"[{self.agent_id}] Delegating to {target.agent_id}: {task[:30]}...")
+        
+        target.current_sigma = self.current_sigma
+        self.ledger.record_delegation(self.agent_id, [target.agent_id], task, weight)
+        
+        return target.execute(task, weight)
+
+class Gemini3_1_Agent(BaseAgent):
+    """Sovereign Agentic Foundation - The core orchestrator."""
+    
+    def thinking_mode(self, prompt: str) -> List[str]:
+        """Generate 4 alchemical stage paths."""
+        logger.debug(f"[{self.agent_id}] Thinking mode: {prompt[:30]}...")
+        
+        paths = [
+            f"CALCINATION: Purge technical debt in {prompt}",
+            f"DISTILLATION: Refine semantic features of {prompt}",
+            f"FERMENTATION: Age and evolve understanding of {prompt}",
+            f"COAGULATION: Manifest Sovereign Observer for {prompt}"
+        ]
+        return paths
 
 class SageAgent(BaseAgent):
-    """Higher-order reasoning agent."""
+    """Higher-Order Reasoning - Multi-layer abstract analysis."""
     
-    def __init__(self, agent_id: str, specialty: str):
+    def __init__(self, agent_id: str, specialty: str = "Higher_Order_Reasoning"):
         super().__init__(agent_id, specialty)
         self.abstraction_levels = ["TACTICAL", "STRATEGIC", "PHILOSOPHICAL", "SYNTHESIS"]
     
     def thinking_mode(self, prompt: str) -> List[str]:
         """Generate multi-layer reasoning paths."""
-        return [
+        logger.debug(f"[{self.agent_id}] Multi-layer thinking: {prompt[:30]}...")
+        
+        paths = [
             f"TACTICAL: Immediate operational analysis of {prompt}",
-            f"STRATEGIC: Mid-level pattern recognition in {prompt}",
-            f"PHILOSOPHICAL: Meta-level abstraction of {prompt}",
-            f"SYNTHESIS: Harmonized insight across all layers for {prompt}"
+            f"STRATEGIC: Mid-term strategic implications of {prompt}",
+            f"PHILOSOPHICAL: Deep fundamental nature of {prompt}",
+            f"SYNTHESIS: Harmonic convergence across all levels of {prompt}"
         ]
+        return paths
     
-    def execute(self, path: str, weight: float = 1.0) -> ThoughtSignature:
+    def execute(self, path: str, weight: float) -> ThoughtSignature:
         """Execute with confidence scoring."""
-        level = next((lvl for lvl in self.abstraction_levels if lvl in path), "UNKNOWN")
+        sigma = super().execute(path, weight)
         
-        confidence_map = {
-            "TACTICAL": 0.95,
-            "STRATEGIC": 0.82,
-            "PHILOSOPHICAL": 0.68,
-            "SYNTHESIS": 0.87
-        }
-        confidence = confidence_map.get(level, 0.5)
+        # Add confidence metadata
+        level = path.split(":")[0] if ":" in path else "UNKNOWN"
+        sigma.metadata['abstraction_level'] = level
+        sigma.metadata['confidence'] = min(weight * 0.9, 1.0)
         
-        sigma = AestheticBridge.transubstantiate(path, weight, self.agent_id, AlchemicalStage.COAGULATION)
-        sigma.context = {
-            'abstraction_level': level,
-            'confidence': confidence
-        }
-        
-        self.current_sigma = sigma
-        self.state = AgentState.SYNCED
-        self.ledger.record_signature(sigma)
+        logger.info(f"[{self.agent_id}] Executed {level} with confidence {sigma.metadata['confidence']:.2%}")
         
         return sigma
 
 class SentinelAgent(BaseAgent):
-    """Monitoring and validation agent."""
+    """Monitoring & Validation - Integrity and anomaly detection."""
     
-    def __init__(self, agent_id: str, specialty: str, strictness: float = 0.75):
+    def __init__(self, agent_id: str, specialty: str = "Monitoring_Validation",
+                 strictness: float = 0.75):
         super().__init__(agent_id, specialty)
-        self.strictness = max(0.0, min(1.0, strictness))
-        self.validation_checks = ["INTEGRITY", "ANOMALY", "CONSISTENCY", "VERDICT"]
+        self.strictness = strictness
+        self.validation_stages = ["INTEGRITY", "ANOMALY", "CONSISTENCY", "VERDICT"]
     
     def thinking_mode(self, prompt: str) -> List[str]:
         """Generate validation pathways."""
-        return [
-            f"INTEGRITY: Cryptographic validation of {prompt}",
-            f"ANOMALY: Outlier detection in {prompt}",
-            f"CONSISTENCY: Cross-reference validation of {prompt}",
-            f"VERDICT: Consolidated validation judgment on {prompt}"
+        logger.debug(f"[{self.agent_id}] Validation thinking: {prompt[:30]}...")
+        
+        paths = [
+            f"INTEGRITY: Verify cryptographic integrity of {prompt}",
+            f"ANOMALY: Detect anomalies in {prompt}",
+            f"CONSISTENCY: Check consistency constraints in {prompt}",
+            f"VERDICT: Render validation verdict on {prompt}"
         ]
+        return paths
     
-    def execute(self, path: str, weight: float = 1.0) -> ThoughtSignature:
-        """Execute validation with strictness threshold."""
-        check_type = next((c for c in self.validation_checks if c in path), "UNKNOWN")
+    def execute(self, path: str, weight: float) -> ThoughtSignature:
+        """Execute with validation scoring."""
+        sigma = super().execute(path, weight)
         
-        base_score = 0.85
-        strictness_penalty = (1.0 - self.strictness) * 0.2
-        validation_score = base_score - strictness_penalty
+        stage = path.split(":")[0] if ":" in path else "UNKNOWN"
+        validation_score = min(weight * self.strictness, 1.0)
         
-        sigma = AestheticBridge.transubstantiate(path, weight, self.agent_id, AlchemicalStage.COAGULATION)
-        sigma.context = {
-            'validation_type': check_type,
-            'validation_score': validation_score,
-            'strictness': self.strictness
-        }
+        sigma.metadata['validation_stage'] = stage
+        sigma.metadata['validation_score'] = validation_score
+        sigma.metadata['strictness'] = self.strictness
         
-        self.current_sigma = sigma
-        self.state = AgentState.SYNCED
-        self.ledger.record_signature(sigma)
+        logger.info(f"[{self.agent_id}] Validation score: {validation_score:.2%}")
         
         return sigma
 
 class OracleAgent(BaseAgent):
-    """Prediction and forecasting agent."""
+    """Prediction & Forecasting - Multi-scenario analysis."""
     
-    def __init__(self, agent_id: str, specialty: str, prediction_horizon: int = 10):
+    def __init__(self, agent_id: str, specialty: str = "Prediction_Forecasting",
+                 prediction_horizon: int = 10):
         super().__init__(agent_id, specialty)
         self.prediction_horizon = prediction_horizon
         self.scenarios = ["OPTIMISTIC", "NOMINAL", "PESSIMISTIC", "SYNTHESIS"]
     
     def thinking_mode(self, prompt: str) -> List[str]:
-        """Generate prediction scenarios."""
-        return [
-            f"OPTIMISTIC: Best-case projection for {prompt}",
+        """Generate forecasting pathways."""
+        logger.debug(f"[{self.agent_id}] Forecasting thinking: {prompt[:30]}...")
+        
+        paths = [
+            f"OPTIMISTIC: Best-case scenario for {prompt}",
             f"NOMINAL: Most-likely trajectory for {prompt}",
             f"PESSIMISTIC: Worst-case scenario for {prompt}",
-            f"SYNTHESIS: Ensemble forecast aggregation of {prompt}"
+            f"SYNTHESIS: Probabilistic synthesis of {prompt}"
         ]
+        return paths
     
-    def execute(self, path: str, weight: float = 1.0) -> ThoughtSignature:
-        """Execute prediction with probability metadata."""
-        scenario = next((s for s in self.scenarios if s in path), "UNKNOWN")
+    def execute(self, path: str, weight: float) -> ThoughtSignature:
+        """Execute with forecast metadata."""
+        sigma = super().execute(path, weight)
         
-        prob_map = {
-            "OPTIMISTIC": 0.25,
-            "NOMINAL": 0.60,
-            "PESSIMISTIC": 0.10,
-            "SYNTHESIS": 0.95
-        }
-        probability = prob_map.get(scenario, 0.5)
+        scenario = path.split(":")[0] if ":" in path else "UNKNOWN"
         
-        sigma = AestheticBridge.transubstantiate(path, weight, self.agent_id, AlchemicalStage.COAGULATION)
-        sigma.context = {
-            'scenario': scenario,
-            'probability': probability,
-            'horizon': self.prediction_horizon
-        }
+        sigma.metadata['scenario'] = scenario
+        sigma.metadata['probability'] = max(0.5, weight / self.phi_threshold)
+        sigma.metadata['horizon'] = self.prediction_horizon
         
-        self.current_sigma = sigma
-        self.state = AgentState.SYNCED
-        self.ledger.record_signature(sigma)
+        logger.info(f"[{self.agent_id}] Forecast {scenario}: P={sigma.metadata['probability']:.2%}")
         
         return sigma
