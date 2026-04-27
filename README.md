@@ -1,1 +1,0 @@
-# magisterial_manifold
